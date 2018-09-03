@@ -3,19 +3,18 @@ const path = require('path');
 module.exports = {
     extends: 'trendmicro',
     parser: 'babel-eslint',
+    plugins: ['jasmine'],
     env: {
         browser: true,
-        node: true
+        node: true,
+        jasmine: true
     },
     settings: {
         'import/resolver': {
             webpack: {
                 config: {
                     resolve: {
-                        modules: [
-                            path.resolve(__dirname, 'src'),
-                            'node_modules'
-                        ],
+                        modules: [path.resolve(__dirname, 'src'), 'node_modules'],
                         extensions: ['.js', '.jsx']
                     }
                 }
@@ -23,10 +22,13 @@ module.exports = {
         }
     },
     rules: {
-        'react/jsx-no-bind': [1, {
-            allowArrowFunctions: true
-        }],
-        "linebreak-style": 0,
+        'react/jsx-no-bind': [
+            1,
+            {
+                allowArrowFunctions: true
+            }
+        ],
+        'linebreak-style': 0,
         'react/prefer-stateless-function': 0,
         'react/no-access-state-in-setstate': 0
     }
