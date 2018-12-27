@@ -1,7 +1,4 @@
-import {
-    IMPERIAL_STEPS,
-    METRIC_STEPS
-} from '../constants';
+import { IMPERIAL_STEPS, METRIC_STEPS } from '../constants';
 
 const defaultState = {
     session: {
@@ -15,15 +12,11 @@ const defaultState = {
             },
             primary: {
                 show: true,
-                widgets: [
-                    'connection', 'console', 'grbl', 'marlin', 'smoothie', 'tinyg', 'webcam'
-                ]
+                widgets: ['connection', 'console', 'grbl', 'marlin', 'smoothie', 'tinyg', 'webcam']
             },
             secondary: {
                 show: true,
-                widgets: [
-                    'axes', 'gcode', 'macro', 'probe', 'spindle', 'laser'
-                ]
+                widgets: ['axes', 'gcode', 'macro', 'probe', 'spindle', 'laser']
             }
         }
     },
@@ -221,6 +214,17 @@ const defaultState = {
             },
             crosshair: false,
             muted: false
+        }
+    },
+    machines: {
+        1: {
+            name: 'example machine',
+            minX: -2,
+            maxX: 250,
+            minY: -2,
+            maxY: 120,
+            minZ: -150,
+            maxZ: 2
         }
     }
 };
