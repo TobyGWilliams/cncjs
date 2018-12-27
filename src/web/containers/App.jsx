@@ -14,17 +14,19 @@ class App extends PureComponent {
 
     render() {
         const { location } = this.props;
-        const accepted = ([
-            '/workspace',
-            '/settings',
-            '/settings/general',
-            '/settings/workspace',
-            '/settings/account',
-            '/settings/controller',
-            '/settings/commands',
-            '/settings/events',
-            '/settings/about'
-        ].indexOf(location.pathname) >= 0);
+        const accepted =
+            [
+                '/workspace',
+                '/settings',
+                '/settings/general',
+                '/settings/workspace',
+                '/settings/account',
+                '/settings/machine',
+                '/settings/controller',
+                '/settings/commands',
+                '/settings/events',
+                '/settings/about'
+            ].indexOf(location.pathname) >= 0;
 
         if (!accepted) {
             return (
@@ -52,12 +54,10 @@ class App extends PureComponent {
                         <Workspace
                             {...this.props}
                             style={{
-                                display: (location.pathname !== '/workspace') ? 'none' : 'block'
+                                display: location.pathname !== '/workspace' ? 'none' : 'block'
                             }}
                         />
-                        {location.pathname.indexOf('/settings') === 0 &&
-                            <Settings {...this.props} />
-                        }
+                        {location.pathname.indexOf('/settings') === 0 && <Settings {...this.props} />}
                     </div>
                 </div>
             </div>
