@@ -19,17 +19,24 @@ import Controller from './Controller';
 import Commands from './Commands';
 import Events from './Events';
 import About from './About';
+import { Machine } from './Machine';
 import styles from './index.styl';
-import {
-    ERR_CONFLICT,
-    ERR_PRECONDITION_FAILED
-} from '../../api/constants';
+import { ERR_CONFLICT, ERR_PRECONDITION_FAILED } from '../../api/constants';
+
+import store from '../../store';
 
 const mapSectionPathToId = (path = '') => {
     return camelCase(path.split('/')[0] || '');
 };
 
 class Settings extends PureComponent {
+    constructor(props) {
+        super(props);
+        store.on('change', data => {
+            this.setState({ ...this.state, store: data });
+        });
+    }
+
     static propTypes = {
         ...withRouter.propTypes
     };
@@ -39,51 +46,60 @@ class Settings extends PureComponent {
             id: 'general',
             path: 'general',
             title: i18n._('General'),
-            component: (props) => <General {...props} />
+            component: props => <General {...props} />
         },
         {
             id: 'workspace',
             path: 'workspace',
             title: i18n._('Workspace'),
-            component: (props) => <Workspace {...props} />
+            component: props => <Workspace {...props} />
         },
         {
             id: 'controller',
             path: 'controller',
             title: i18n._('Controller'),
-            component: (props) => <Controller {...props} />
+            component: props => <Controller {...props} />
+        },
+        {
+            id: 'machine',
+            path: 'machine',
+            title: i18n._('Machine'),
+            component: props => <Machine machines={this.state.store.machines} />
         },
         {
             id: 'account',
             path: 'account',
             title: i18n._('My Account'),
-            component: (props) => <Account {...props} />
+            component: props => <Account {...props} />
         },
         {
             id: 'commands',
             path: 'commands',
             title: i18n._('Commands'),
-            component: (props) => <Commands {...props} />
+            component: props => <Commands {...props} />
         },
         {
             id: 'events',
             path: 'events',
             title: i18n._('Events'),
-            component: (props) => <Events {...props} />
+            component: props => <Events {...props} />
         },
         {
             id: 'about',
             path: 'about',
             title: i18n._('About'),
-            component: (props) => <About {...props} />
+            component: props => <About {...props} />
         }
     ];
+
     initialState = this.getInitialState();
+
     state = this.getInitialState();
+
     actions = {
         // General
         general: {
-            load: (options) => {
+            load: options => {
                 this.setState({
                     general: {
                         ...this.state.general,
@@ -96,7 +112,7 @@ class Settings extends PureComponent {
                 });
 
                 api.getState()
-                    .then((res) => {
+                    .then(res => {
                         const { checkForUpdates } = { ...res.body };
 
                         const nextState = {
@@ -115,7 +131,7 @@ class Settings extends PureComponent {
 
                         this.setState({ general: nextState });
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         this.setState({
                             general: {
                                 ...this.state.general,
@@ -147,7 +163,7 @@ class Settings extends PureComponent {
                 };
 
                 api.setState(data)
-                    .then((res) => {
+                    .then(res => {
                         const nextState = {
                             ...this.state.general,
                             api: {
@@ -162,7 +178,7 @@ class Settings extends PureComponent {
 
                         this.setState({ general: nextState });
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         this.setState({
                             general: {
                                 ...this.state.general,
@@ -201,7 +217,7 @@ class Settings extends PureComponent {
                     }
                 });
             },
-            changeLanguage: (lang) => {
+            changeLanguage: lang => {
                 this.setState({
                     general: {
                         ...this.state.general,
@@ -237,7 +253,7 @@ class Settings extends PureComponent {
         },
         // Controller
         controller: {
-            load: (options) => {
+            load: options => {
                 this.setState(state => ({
                     controller: {
                         ...state.controller,
@@ -249,35 +265,37 @@ class Settings extends PureComponent {
                     }
                 }));
 
-                api.getState().then((res) => {
-                    const ignoreErrors = get(res.body, 'controller.exception.ignoreErrors');
+                api.getState()
+                    .then(res => {
+                        const ignoreErrors = get(res.body, 'controller.exception.ignoreErrors');
 
-                    const nextState = {
-                        ...this.state.controller,
-                        api: {
-                            ...this.state.controller.api,
-                            err: false,
-                            loading: false
-                        },
-                        // followed by data
-                        ignoreErrors: !!ignoreErrors
-                    };
-
-                    this.initialState.controller = nextState;
-
-                    this.setState({ controller: nextState });
-                }).catch((res) => {
-                    this.setState(state => ({
-                        controller: {
-                            ...state.controller,
+                        const nextState = {
+                            ...this.state.controller,
                             api: {
-                                ...state.controller.api,
-                                err: true,
+                                ...this.state.controller.api,
+                                err: false,
                                 loading: false
+                            },
+                            // followed by data
+                            ignoreErrors: !!ignoreErrors
+                        };
+
+                        this.initialState.controller = nextState;
+
+                        this.setState({ controller: nextState });
+                    })
+                    .catch(res => {
+                        this.setState(state => ({
+                            controller: {
+                                ...state.controller,
+                                api: {
+                                    ...state.controller.api,
+                                    err: true,
+                                    loading: false
+                                }
                             }
-                        }
-                    }));
-                });
+                        }));
+                    });
             },
             save: () => {
                 this.setState(state => ({
@@ -299,32 +317,34 @@ class Settings extends PureComponent {
                     }
                 };
 
-                api.setState(data).then((res) => {
-                    const nextState = {
-                        ...this.state.controller,
-                        api: {
-                            ...this.state.controller.api,
-                            err: false,
-                            saving: false
-                        }
-                    };
-
-                    // Update settings to initialState
-                    this.initialState.controller = nextState;
-
-                    this.setState({ controller: nextState });
-                }).catch((res) => {
-                    this.setState(state => ({
-                        controller: {
-                            ...state.controller,
+                api.setState(data)
+                    .then(res => {
+                        const nextState = {
+                            ...this.state.controller,
                             api: {
-                                ...state.controller.api,
-                                err: true,
+                                ...this.state.controller.api,
+                                err: false,
                                 saving: false
                             }
-                        }
-                    }));
-                });
+                        };
+
+                        // Update settings to initialState
+                        this.initialState.controller = nextState;
+
+                        this.setState({ controller: nextState });
+                    })
+                    .catch(res => {
+                        this.setState(state => ({
+                            controller: {
+                                ...state.controller,
+                                api: {
+                                    ...state.controller.api,
+                                    err: true,
+                                    saving: false
+                                }
+                            }
+                        }));
+                    });
             },
             restoreSettings: () => {
                 // Restore settings from initialState
@@ -343,12 +363,9 @@ class Settings extends PureComponent {
         },
         // My Account
         account: {
-            fetchRecords: (options) => {
+            fetchRecords: options => {
                 const state = this.state.account;
-                const {
-                    page = state.pagination.page,
-                    pageLength = state.pagination.pageLength
-                } = { ...options };
+                const { page = state.pagination.page, pageLength = state.pagination.pageLength } = { ...options };
 
                 this.setState({
                     account: {
@@ -361,8 +378,9 @@ class Settings extends PureComponent {
                     }
                 });
 
-                api.users.fetch({ paging: true, page, pageLength })
-                    .then((res) => {
+                api.users
+                    .fetch({ paging: true, page, pageLength })
+                    .then(res => {
                         const { pagination, records } = res.body;
 
                         this.setState({
@@ -382,7 +400,7 @@ class Settings extends PureComponent {
                             }
                         });
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         this.setState({
                             account: {
                                 ...this.state.account,
@@ -396,19 +414,21 @@ class Settings extends PureComponent {
                         });
                     });
             },
-            createRecord: (options) => {
+            createRecord: options => {
                 const actions = this.actions.account;
 
-                api.users.create(options)
-                    .then((res) => {
+                api.users
+                    .create(options)
+                    .then(res => {
                         actions.closeModal();
                         actions.fetchRecords();
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         const fallbackMsg = i18n._('An unexpected error has occurred.');
-                        const msg = {
-                            [ERR_CONFLICT]: i18n._('The account name is already being used. Choose another name.')
-                        }[res.status] || fallbackMsg;
+                        const msg =
+                            {
+                                [ERR_CONFLICT]: i18n._('The account name is already being used. Choose another name.')
+                            }[res.status] || fallbackMsg;
 
                         actions.updateModalParams({ alertMessage: msg });
                     });
@@ -416,8 +436,9 @@ class Settings extends PureComponent {
             updateRecord: (id, options, forceReload = false) => {
                 const actions = this.actions.account;
 
-                api.users.update(id, options)
-                    .then((res) => {
+                api.users
+                    .update(id, options)
+                    .then(res => {
                         actions.closeModal();
 
                         if (forceReload) {
@@ -442,24 +463,26 @@ class Settings extends PureComponent {
                             });
                         }
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         const fallbackMsg = i18n._('An unexpected error has occurred.');
-                        const msg = {
-                            [ERR_CONFLICT]: i18n._('The account name is already being used. Choose another name.'),
-                            [ERR_PRECONDITION_FAILED]: i18n._('Passwords do not match.')
-                        }[res.status] || fallbackMsg;
+                        const msg =
+                            {
+                                [ERR_CONFLICT]: i18n._('The account name is already being used. Choose another name.'),
+                                [ERR_PRECONDITION_FAILED]: i18n._('Passwords do not match.')
+                            }[res.status] || fallbackMsg;
 
                         actions.updateModalParams({ alertMessage: msg });
                     });
             },
-            deleteRecord: (id) => {
+            deleteRecord: id => {
                 const actions = this.actions.account;
 
-                api.users.delete(id)
-                    .then((res) => {
+                api.users
+                    .delete(id)
+                    .then(res => {
                         actions.fetchRecords();
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         // Ignore error
                     });
             },
@@ -502,12 +525,9 @@ class Settings extends PureComponent {
         },
         // Commands
         commands: {
-            fetchRecords: (options) => {
+            fetchRecords: options => {
                 const state = this.state.commands;
-                const {
-                    page = state.pagination.page,
-                    pageLength = state.pagination.pageLength
-                } = { ...options };
+                const { page = state.pagination.page, pageLength = state.pagination.pageLength } = { ...options };
 
                 this.setState({
                     commands: {
@@ -520,8 +540,9 @@ class Settings extends PureComponent {
                     }
                 });
 
-                api.commands.fetch({ paging: true, page, pageLength })
-                    .then((res) => {
+                api.commands
+                    .fetch({ paging: true, page, pageLength })
+                    .then(res => {
                         const { pagination, records } = res.body;
 
                         this.setState({
@@ -541,7 +562,7 @@ class Settings extends PureComponent {
                             }
                         });
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         this.setState({
                             commands: {
                                 ...this.state.commands,
@@ -555,19 +576,21 @@ class Settings extends PureComponent {
                         });
                     });
             },
-            createRecord: (options) => {
+            createRecord: options => {
                 const actions = this.actions.commands;
 
-                api.commands.create(options)
-                    .then((res) => {
+                api.commands
+                    .create(options)
+                    .then(res => {
                         actions.closeModal();
                         actions.fetchRecords();
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         const fallbackMsg = i18n._('An unexpected error has occurred.');
-                        const msg = {
-                            // TODO
-                        }[res.status] || fallbackMsg;
+                        const msg =
+                            {
+                                // TODO
+                            }[res.status] || fallbackMsg;
 
                         actions.updateModalParams({ alertMessage: msg });
                     });
@@ -575,8 +598,9 @@ class Settings extends PureComponent {
             updateRecord: (id, options, forceReload = false) => {
                 const actions = this.actions.commands;
 
-                api.commands.update(id, options)
-                    .then((res) => {
+                api.commands
+                    .update(id, options)
+                    .then(res => {
                         actions.closeModal();
 
                         if (forceReload) {
@@ -601,23 +625,25 @@ class Settings extends PureComponent {
                             });
                         }
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         const fallbackMsg = i18n._('An unexpected error has occurred.');
-                        const msg = {
-                            // TODO
-                        }[res.status] || fallbackMsg;
+                        const msg =
+                            {
+                                // TODO
+                            }[res.status] || fallbackMsg;
 
                         actions.updateModalParams({ alertMessage: msg });
                     });
             },
-            deleteRecord: (id) => {
+            deleteRecord: id => {
                 const actions = this.actions.commands;
 
-                api.commands.delete(id)
-                    .then((res) => {
+                api.commands
+                    .delete(id)
+                    .then(res => {
                         actions.fetchRecords();
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         // Ignore error
                     });
             },
@@ -660,12 +686,9 @@ class Settings extends PureComponent {
         },
         // Events
         events: {
-            fetchRecords: (options) => {
+            fetchRecords: options => {
                 const state = this.state.events;
-                const {
-                    page = state.pagination.page,
-                    pageLength = state.pagination.pageLength
-                } = { ...options };
+                const { page = state.pagination.page, pageLength = state.pagination.pageLength } = { ...options };
 
                 this.setState({
                     events: {
@@ -678,8 +701,9 @@ class Settings extends PureComponent {
                     }
                 });
 
-                api.events.fetch({ paging: true, page, pageLength })
-                    .then((res) => {
+                api.events
+                    .fetch({ paging: true, page, pageLength })
+                    .then(res => {
                         const { pagination, records } = res.body;
 
                         this.setState({
@@ -699,7 +723,7 @@ class Settings extends PureComponent {
                             }
                         });
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         this.setState({
                             events: {
                                 ...this.state.events,
@@ -713,19 +737,21 @@ class Settings extends PureComponent {
                         });
                     });
             },
-            createRecord: (options) => {
+            createRecord: options => {
                 const actions = this.actions.events;
 
-                api.events.create(options)
-                    .then((res) => {
+                api.events
+                    .create(options)
+                    .then(res => {
                         actions.closeModal();
                         actions.fetchRecords();
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         const fallbackMsg = i18n._('An unexpected error has occurred.');
-                        const msg = {
-                            // TODO
-                        }[res.status] || fallbackMsg;
+                        const msg =
+                            {
+                                // TODO
+                            }[res.status] || fallbackMsg;
 
                         actions.updateModalParams({ alertMessage: msg });
                     });
@@ -733,8 +759,9 @@ class Settings extends PureComponent {
             updateRecord: (id, options, forceReload = false) => {
                 const actions = this.actions.events;
 
-                api.events.update(id, options)
-                    .then((res) => {
+                api.events
+                    .update(id, options)
+                    .then(res => {
                         actions.closeModal();
 
                         if (forceReload) {
@@ -759,23 +786,25 @@ class Settings extends PureComponent {
                             });
                         }
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         const fallbackMsg = i18n._('An unexpected error has occurred.');
-                        const msg = {
-                            // TODO
-                        }[res.status] || fallbackMsg;
+                        const msg =
+                            {
+                                // TODO
+                            }[res.status] || fallbackMsg;
 
                         actions.updateModalParams({ alertMessage: msg });
                     });
             },
-            deleteRecord: (id) => {
+            deleteRecord: id => {
                 const actions = this.actions.events;
 
-                api.events.delete(id)
-                    .then((res) => {
+                api.events
+                    .delete(id)
+                    .then(res => {
                         actions.fetchRecords();
                     })
-                    .catch((res) => {
+                    .catch(res => {
                         // Ignore error
                     });
             },
@@ -830,7 +859,7 @@ class Settings extends PureComponent {
                 });
 
                 api.getLatestVersion()
-                    .then((res) => {
+                    .then(res => {
                         if (!this.mounted) {
                             return;
                         }
@@ -852,16 +881,22 @@ class Settings extends PureComponent {
                         // Ignore error
                     });
             }
+        },
+        machine: {
+            hello: true
         }
     };
 
     componentDidMount() {
         this.mounted = true;
     }
+
     componentWillUnmount() {
         this.mounted = false;
     }
+
     getInitialState() {
+        const machines = store.get('machines');
         return {
             // General
             general: {
@@ -880,8 +915,7 @@ class Settings extends PureComponent {
                 // Modal
                 modal: {
                     name: '',
-                    params: {
-                    }
+                    params: {}
                 }
             },
             // My Account
@@ -935,8 +969,7 @@ class Settings extends PureComponent {
                 // Modal
                 modal: {
                     name: '',
-                    params: {
-                    }
+                    params: {}
                 }
             },
             // Events
@@ -956,8 +989,7 @@ class Settings extends PureComponent {
                 // Modal
                 modal: {
                     name: '',
-                    params: {
-                    }
+                    params: {}
                 }
             },
             // About
@@ -968,9 +1000,14 @@ class Settings extends PureComponent {
                     latest: settings.version,
                     lastUpdate: ''
                 }
+            },
+            store: {
+                machines
             }
+
         };
     }
+
     render() {
         const state = {
             ...this.state
@@ -984,15 +1021,8 @@ class Settings extends PureComponent {
         const id = mapSectionPathToId(sectionPath || initialSectionPath);
         const activeSection = find(this.sections, { id: id }) || this.sections[0];
         const sectionItems = this.sections.map((section, index) => (
-            <li
-                key={section.id}
-                className={classNames(
-                    { [styles.active]: activeSection.id === section.id }
-                )}
-            >
-                <Link to={`/settings/${section.path}`}>
-                    {section.title}
-                </Link>
+            <li key={section.id} className={classNames({ [styles.active]: activeSection.id === section.id })}>
+                <Link to={`/settings/${section.path}`}>{section.title}</Link>
             </li>
         ));
 
@@ -1012,9 +1042,7 @@ class Settings extends PureComponent {
                     <div className={styles.row}>
                         <div className={classNames(styles.col, styles.sidenav)}>
                             <nav className={styles.navbar}>
-                                <ul className={styles.nav}>
-                                    {sectionItems}
-                                </ul>
+                                <ul className={styles.nav}>{sectionItems}</ul>
                             </nav>
                         </div>
                         <div className={classNames(styles.col, styles.splitter)} />
@@ -1022,9 +1050,7 @@ class Settings extends PureComponent {
                             <div className={styles.heading}>{activeSection.title}</div>
                             <div className={styles.content}>
                                 <Section
-                                    initialState={sectionInitialState}
-                                    state={sectionState}
-                                    stateChanged={sectionStateChanged}
+                                    initialState={sectionInitialState} state={sectionState} stateChanged={sectionStateChanged}
                                     actions={sectionActions}
                                 />
                             </div>
