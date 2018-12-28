@@ -32,14 +32,16 @@ const mapSectionPathToId = (path = '') => {
 class Settings extends PureComponent {
     constructor(props) {
         super(props);
-        store.on('change', data => {
-            this.setState({ ...this.state, store: data });
-        });
+        store.on('change', this.updateStateFromStore);
     }
 
     static propTypes = {
         ...withRouter.propTypes
     };
+
+    updateStateFromStore = data => {
+        this.setState({ ...this.state, store: data });
+    }
 
     sections = [
         {
@@ -893,6 +895,7 @@ class Settings extends PureComponent {
 
     componentWillUnmount() {
         this.mounted = false;
+        store.removeListener('change', this.updateStateFromStore);
     }
 
     getInitialState() {
