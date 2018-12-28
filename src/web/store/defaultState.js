@@ -224,7 +224,8 @@ const defaultState = {
             minY: -2,
             maxY: 120,
             minZ: -150,
-            maxZ: 2
+            maxZ: 2,
+            selected: true
         }
     }
 };

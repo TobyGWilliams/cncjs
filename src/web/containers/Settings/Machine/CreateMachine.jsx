@@ -30,7 +30,8 @@ export class CreateMachine extends PureComponent {
                 return;
             }
             const formData = this.form.getValues();
-            createMachine(formData).then(this.props.close);
+
+            createMachine({ ...formData, selected: false }).then(this.props.close);
         });
     };
 
