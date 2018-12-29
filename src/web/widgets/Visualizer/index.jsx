@@ -19,7 +19,7 @@ import log from '../../lib/log';
 import portal from '../../lib/portal';
 import { in2mm } from '../../lib/units';
 import WidgetConfig from '../WidgetConfig';
-import PrimaryToolbar from './PrimaryToolbar';
+import PrimaryToolbar from './PrimaryToolbar/index';
 import SecondaryToolbar from './SecondaryToolbar';
 import WorkflowControl from './WorkflowControl';
 import Visualizer from './Visualizer';
