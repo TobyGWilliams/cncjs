@@ -9,6 +9,7 @@ import { EditMachine } from './EditMachine';
 import { DeleteMachine } from './DeleteMachine';
 
 import styles from './index.styl';
+import { selectMachine } from '../../../store/reducers';
 
 const objectToArray = array => values(
     mapValues(array, (value, key) => {
@@ -100,6 +101,21 @@ export class Machine extends React.PureComponent {
                     title: 'Maximum Z',
                     key: 'maxZ',
                     render: (value, row, index) => row.maxZ
+                },
+                {
+                    title: 'Selected',
+                    key: 'selected',
+                    render: (value, row, index) => (
+                        <button
+                            type="button"
+                            className="btn btn-xs btn-default"
+                            onClick={() => {
+                                selectMachine(row.id);
+                            }}
+                        >
+                            <i className={`fa fa-fw ${row.selected ? 'fa-toggle-on' : 'fa-toggle-off'}`} />
+                        </button>
+                    )
                 },
                 {
                     title: 'Actions',
