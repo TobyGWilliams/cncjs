@@ -19,15 +19,8 @@ import FeederPaused from './modals/FeederPaused';
 import FeederWait from './modals/FeederWait';
 import ServerDisconnected from './modals/ServerDisconnected';
 import styles from './index.styl';
-import {
-    WORKFLOW_STATE_IDLE
-} from '../../constants';
-import {
-    MODAL_NONE,
-    MODAL_FEEDER_PAUSED,
-    MODAL_FEEDER_WAIT,
-    MODAL_SERVER_DISCONNECTED
-} from './constants';
+import { WORKFLOW_STATE_IDLE } from '../../constants';
+import { MODAL_NONE, MODAL_FEEDER_PAUSED, MODAL_FEEDER_WAIT, MODAL_SERVER_DISCONNECTED } from './constants';
 
 const WAIT = '%wait';
 
@@ -43,6 +36,15 @@ const stopWaiting = () => {
 };
 
 class Workspace extends PureComponent {
+    constructor(props) {
+        super(props);
+        store.on('change', this.updateStateFromStore);
+    }
+
+    updateStateFromStore = data => {
+        this.setState({ ...this.state, store: data });
+    };
+
     static propTypes = {
         ...withRouter.propTypes
     };
@@ -61,6 +63,7 @@ class Workspace extends PureComponent {
         showSecondaryContainer: store.get('workspace.container.secondary.show'),
         inactiveCount: _.size(widgetManager.getInactiveWidgets())
     };
+
     action = {
         openModal: (name = MODAL_NONE, params = {}) => {
             this.setState(state => ({
@@ -90,47 +93,56 @@ class Workspace extends PureComponent {
             }));
         }
     };
+
     sortableGroup = {
         primary: null,
         secondary: null
     };
+
     primaryContainer = null;
+
     secondaryContainer = null;
+
     primaryToggler = null;
+
     secondaryToggler = null;
+
     primaryWidgets = null;
+
     secondaryWidgets = null;
+
     defaultContainer = null;
+
     controllerEvents = {
-        'connect': () => {
+        connect: () => {
             if (controller.connected) {
                 this.action.closeModal();
             } else {
                 this.action.openModal(MODAL_SERVER_DISCONNECTED);
             }
         },
-        'connect_error': () => {
+        connect_error: () => {
             if (controller.connected) {
                 this.action.closeModal();
             } else {
                 this.action.openModal(MODAL_SERVER_DISCONNECTED);
             }
         },
-        'disconnect': () => {
+        disconnect: () => {
             if (controller.connected) {
                 this.action.closeModal();
             } else {
                 this.action.openModal(MODAL_SERVER_DISCONNECTED);
             }
         },
-        'serialport:open': (options) => {
+        'serialport:open': options => {
             const { port } = options;
             this.setState({ port: port });
         },
-        'serialport:close': (options) => {
+        'serialport:close': options => {
             this.setState({ port: '' });
         },
-        'feeder:status': (status) => {
+        'feeder:status': status => {
             const { modal } = this.state;
             const { hold, holdReason } = { ...status };
 
@@ -157,26 +169,28 @@ class Workspace extends PureComponent {
                 return;
             }
 
-            const title = {
-                'M0': i18n._('M0 Program Pause'),
-                'M1': i18n._('M1 Program Pause'),
-                'M2': i18n._('M2 Program End'),
-                'M30': i18n._('M30 Program End'),
-                'M6': i18n._('M6 Tool Change'),
-                'M109': i18n._('M109 Set Extruder Temperature'),
-                'M190': i18n._('M190 Set Heated Bed Temperature')
-            }[data] || data;
+            const title =
+                {
+                    M0: i18n._('M0 Program Pause'),
+                    M1: i18n._('M1 Program Pause'),
+                    M2: i18n._('M2 Program End'),
+                    M30: i18n._('M30 Program End'),
+                    M6: i18n._('M6 Tool Change'),
+                    M109: i18n._('M109 Set Extruder Temperature'),
+                    M190: i18n._('M190 Set Heated Bed Temperature')
+                }[data] || data;
 
             this.action.openModal(MODAL_FEEDER_PAUSED, {
                 title: title
             });
         }
     };
+
     widgetEventHandler = {
-        onForkWidget: (widgetId) => {
+        onForkWidget: widgetId => {
             // TODO
         },
-        onRemoveWidget: (widgetId) => {
+        onRemoveWidget: widgetId => {
             const inactiveWidgets = widgetManager.getInactiveWidgets();
             this.setState({ inactiveCount: inactiveWidgets.length });
         },
@@ -219,7 +233,8 @@ class Workspace extends PureComponent {
         const defaultContainer = ReactDOM.findDOMNode(this.defaultContainer);
         const { showPrimaryContainer, showSecondaryContainer } = this.state;
 
-        { // Mobile-Friendly View
+        {
+            // Mobile-Friendly View
             const { location } = this.props;
             const disableHorizontalScroll = !(showPrimaryContainer && showSecondaryContainer);
 
@@ -249,7 +264,7 @@ class Workspace extends PureComponent {
         pubsub.publish('resize'); // Also see "widgets/Visualizer"
     };
 
-    onDrop = (files) => {
+    onDrop = files => {
         const { port } = this.state;
 
         if (!port) {
@@ -259,7 +274,7 @@ class Workspace extends PureComponent {
         let file = files[0];
         let reader = new FileReader();
 
-        reader.onloadend = (event) => {
+        reader.onloadend = event => {
             const { result, error } = event.target;
 
             if (error) {
@@ -267,14 +282,7 @@ class Workspace extends PureComponent {
                 return;
             }
 
-            log.debug('FileReader:', _.pick(file, [
-                'lastModified',
-                'lastModifiedDate',
-                'meta',
-                'name',
-                'size',
-                'type'
-            ]));
+            log.debug('FileReader:', _.pick(file, ['lastModified', 'lastModifiedDate', 'meta', 'name', 'size', 'type']));
 
             startWaiting();
             this.setState({ isUploading: true });
@@ -283,11 +291,11 @@ class Workspace extends PureComponent {
             const gcode = result;
 
             api.loadGCode({ port, name, gcode })
-                .then((res) => {
+                .then(res => {
                     const { name = '', gcode = '' } = { ...res.body };
                     pubsub.publish('gcode:load', { name, gcode });
                 })
-                .catch((res) => {
+                .catch(res => {
                     log.error('Failed to upload G-code file');
                 })
                 .then(() => {
@@ -305,12 +313,11 @@ class Workspace extends PureComponent {
 
     updateWidgetsForPrimaryContainer = () => {
         widgetManager.show((activeWidgets, inactiveWidgets) => {
-            const widgets = Object.keys(store.get('widgets', {}))
-                .filter(widgetId => {
-                    // e.g. "webcam" or "webcam:d8e6352f-80a9-475f-a4f5-3e9197a48a23"
-                    const name = widgetId.split(':')[0];
-                    return _.includes(activeWidgets, name);
-                });
+            const widgets = Object.keys(store.get('widgets', {})).filter(widgetId => {
+                // e.g. "webcam" or "webcam:d8e6352f-80a9-475f-a4f5-3e9197a48a23"
+                const name = widgetId.split(':')[0];
+                return _.includes(activeWidgets, name);
+            });
 
             const defaultWidgets = store.get('workspace.container.default.widgets');
             const sortableWidgets = _.difference(widgets, defaultWidgets);
@@ -332,12 +339,11 @@ class Workspace extends PureComponent {
 
     updateWidgetsForSecondaryContainer = () => {
         widgetManager.show((activeWidgets, inactiveWidgets) => {
-            const widgets = Object.keys(store.get('widgets', {}))
-                .filter(widgetId => {
-                    // e.g. "webcam" or "webcam:d8e6352f-80a9-475f-a4f5-3e9197a48a23"
-                    const name = widgetId.split(':')[0];
-                    return _.includes(activeWidgets, name);
-                });
+            const widgets = Object.keys(store.get('widgets', {})).filter(widgetId => {
+                // e.g. "webcam" or "webcam:d8e6352f-80a9-475f-a4f5-3e9197a48a23"
+                const name = widgetId.split(':')[0];
+                return _.includes(activeWidgets, name);
+            });
 
             const defaultWidgets = store.get('workspace.container.default.widgets');
             const sortableWidgets = _.difference(widgets, defaultWidgets);
@@ -366,76 +372,57 @@ class Workspace extends PureComponent {
             this.setState({ mounted: true });
         }, 0);
     }
+
     componentWillUnmount() {
         this.removeControllerEvents();
         this.removeResizeEventListener();
+        store.removeListener('change', this.updateStateFromStore);
     }
+
     componentDidUpdate() {
         store.set('workspace.container.primary.show', this.state.showPrimaryContainer);
         store.set('workspace.container.secondary.show', this.state.showSecondaryContainer);
 
         this.resizeDefaultContainer();
     }
+
     addControllerEvents() {
         Object.keys(this.controllerEvents).forEach(eventName => {
             const callback = this.controllerEvents[eventName];
             controller.addListener(eventName, callback);
         });
     }
+
     removeControllerEvents() {
         Object.keys(this.controllerEvents).forEach(eventName => {
             const callback = this.controllerEvents[eventName];
             controller.removeListener(eventName, callback);
         });
     }
+
     addResizeEventListener() {
         this.onResizeThrottled = _.throttle(this.resizeDefaultContainer, 50);
         window.addEventListener('resize', this.onResizeThrottled);
     }
+
     removeResizeEventListener() {
         window.removeEventListener('resize', this.onResizeThrottled);
         this.onResizeThrottled = null;
     }
+
     render() {
         const { style, className } = this.props;
-        const {
-            port,
-            modal,
-            isDraggingFile,
-            isDraggingWidget,
-            showPrimaryContainer,
-            showSecondaryContainer,
-            inactiveCount
-        } = this.state;
+        const { port, modal, isDraggingFile, isDraggingWidget, showPrimaryContainer, showSecondaryContainer, inactiveCount } = this.state;
         const hidePrimaryContainer = !showPrimaryContainer;
         const hideSecondaryContainer = !showSecondaryContainer;
 
         return (
             <div style={style} className={classNames(className, styles.workspace)}>
-                {modal.name === MODAL_FEEDER_PAUSED &&
-                <FeederPaused
-                    title={modal.params.title}
-                    onClose={this.action.closeModal}
-                />
-                }
-                {modal.name === MODAL_FEEDER_WAIT &&
-                <FeederWait
-                    title={modal.params.title}
-                    onClose={this.action.closeModal}
-                />
-                }
-                {modal.name === MODAL_SERVER_DISCONNECTED &&
-                <ServerDisconnected />
-                }
-                <div
-                    className={classNames(
-                        styles.dropzoneOverlay,
-                        { [styles.hidden]: !(port && isDraggingFile) }
-                    )}
-                >
-                    <div className={styles.textBlock}>
-                        {i18n._('Drop G-code file here')}
-                    </div>
+                {modal.name === MODAL_FEEDER_PAUSED && <FeederPaused title={modal.params.title} onClose={this.action.closeModal} />}
+                {modal.name === MODAL_FEEDER_WAIT && <FeederWait title={modal.params.title} onClose={this.action.closeModal} />}
+                {modal.name === MODAL_SERVER_DISCONNECTED && <ServerDisconnected />}
+                <div className={classNames(styles.dropzoneOverlay, { [styles.hidden]: !(port && isDraggingFile) })}>
+                    <div className={styles.textBlock}>{i18n._('Drop G-code file here')}</div>
                 </div>
                 <Dropzone
                     className={styles.dropzone}
@@ -443,9 +430,8 @@ class Workspace extends PureComponent {
                     disableClick={true}
                     disablePreview={true}
                     multiple={false}
-                    onDragStart={(event) => {
-                    }}
-                    onDragEnter={(event) => {
+                    onDragStart={event => {}}
+                    onDragEnter={event => {
                         if (controller.workflow.state !== WORKFLOW_STATE_IDLE) {
                             return;
                         }
@@ -456,7 +442,7 @@ class Workspace extends PureComponent {
                             this.setState({ isDraggingFile: true });
                         }
                     }}
-                    onDragLeave={(event) => {
+                    onDragLeave={event => {
                         if (controller.workflow.state !== WORKFLOW_STATE_IDLE) {
                             return;
                         }
@@ -486,45 +472,23 @@ class Workspace extends PureComponent {
                                 ref={node => {
                                     this.primaryContainer = node;
                                 }}
-                                className={classNames(
-                                    styles.primaryContainer,
-                                    { [styles.hidden]: hidePrimaryContainer }
-                                )}
+                                className={classNames(styles.primaryContainer, { [styles.hidden]: hidePrimaryContainer })}
                             >
                                 <ButtonToolbar style={{ margin: '5px 0' }}>
-                                    <ButtonGroup
-                                        style={{ marginLeft: 0, marginRight: 10 }}
-                                        btnSize="sm"
-                                        btnStyle="flat"
-                                    >
-                                        <Button
-                                            style={{ minWidth: 30 }}
-                                            compact
-                                            onClick={this.togglePrimaryContainer}
-                                        >
+                                    <ButtonGroup style={{ marginLeft: 0, marginRight: 10 }} btnSize="sm" btnStyle="flat">
+                                        <Button style={{ minWidth: 30 }} compact onClick={this.togglePrimaryContainer}>
                                             <i className="fa fa-chevron-left" />
                                         </Button>
                                     </ButtonGroup>
-                                    <ButtonGroup
-                                        style={{ marginLeft: 0, marginRight: 10 }}
-                                        btnSize="sm"
-                                        btnStyle="flat"
-                                    >
-                                        <Button
-                                            style={{ width: 230 }}
-                                            onClick={this.updateWidgetsForPrimaryContainer}
-                                        >
+                                    <ButtonGroup style={{ marginLeft: 0, marginRight: 10 }} btnSize="sm" btnStyle="flat">
+                                        <Button style={{ width: 230 }} onClick={this.updateWidgetsForPrimaryContainer}>
                                             <i className="fa fa-list-alt" />
                                             {i18n._('Manage Widgets ({{inactiveCount}})', {
                                                 inactiveCount: inactiveCount
                                             })}
                                         </Button>
                                     </ButtonGroup>
-                                    <ButtonGroup
-                                        style={{ marginLeft: 0, marginRight: 0 }}
-                                        btnSize="sm"
-                                        btnStyle="flat"
-                                    >
+                                    <ButtonGroup style={{ marginLeft: 0, marginRight: 0 }} btnSize="sm" btnStyle="flat">
                                         <Button
                                             style={{ minWidth: 30 }}
                                             compact
@@ -557,75 +521,51 @@ class Workspace extends PureComponent {
                                     onDragEnd={this.widgetEventHandler.onDragEnd}
                                 />
                             </div>
-                            {hidePrimaryContainer &&
-                            <div
-                                ref={node => {
-                                    this.primaryToggler = node;
-                                }}
-                                className={styles.primaryToggler}
-                            >
-                                <ButtonGroup
-                                    btnSize="sm"
-                                    btnStyle="flat"
+                            {hidePrimaryContainer && (
+                                <div
+                                    ref={node => {
+                                        this.primaryToggler = node;
+                                    }}
+                                    className={styles.primaryToggler}
                                 >
-                                    <Button
-                                        style={{ minWidth: 30 }}
-                                        compact
-                                        onClick={this.togglePrimaryContainer}
-                                    >
-                                        <i className="fa fa-chevron-right" />
-                                    </Button>
-                                </ButtonGroup>
-                            </div>
-                            }
+                                    <ButtonGroup btnSize="sm" btnStyle="flat">
+                                        <Button style={{ minWidth: 30 }} compact onClick={this.togglePrimaryContainer}>
+                                            <i className="fa fa-chevron-right" />
+                                        </Button>
+                                    </ButtonGroup>
+                                </div>
+                            )}
                             <div
                                 ref={node => {
                                     this.defaultContainer = node;
                                 }}
-                                className={classNames(
-                                    styles.defaultContainer,
-                                    styles.fixed
-                                )}
+                                className={classNames(styles.defaultContainer, styles.fixed)}
                             >
                                 <DefaultWidgets />
                             </div>
-                            {hideSecondaryContainer &&
-                            <div
-                                ref={node => {
-                                    this.secondaryToggler = node;
-                                }}
-                                className={styles.secondaryToggler}
-                            >
-                                <ButtonGroup
-                                    btnSize="sm"
-                                    btnStyle="flat"
+                            {hideSecondaryContainer && (
+                                <div
+                                    ref={node => {
+                                        this.secondaryToggler = node;
+                                    }}
+                                    className={styles.secondaryToggler}
                                 >
-                                    <Button
-                                        style={{ minWidth: 30 }}
-                                        compact
-                                        onClick={this.toggleSecondaryContainer}
-                                    >
-                                        <i className="fa fa-chevron-left" />
-                                    </Button>
-                                </ButtonGroup>
-                            </div>
-                            }
+                                    <ButtonGroup btnSize="sm" btnStyle="flat">
+                                        <Button style={{ minWidth: 30 }} compact onClick={this.toggleSecondaryContainer}>
+                                            <i className="fa fa-chevron-left" />
+                                        </Button>
+                                    </ButtonGroup>
+                                </div>
+                            )}
                             <div
                                 ref={node => {
                                     this.secondaryContainer = node;
                                 }}
-                                className={classNames(
-                                    styles.secondaryContainer,
-                                    { [styles.hidden]: hideSecondaryContainer }
-                                )}
+                                className={classNames(styles.secondaryContainer, { [styles.hidden]: hideSecondaryContainer })}
                             >
                                 <ButtonToolbar style={{ margin: '5px 0' }}>
                                     <div className="pull-left">
-                                        <ButtonGroup
-                                            style={{ marginLeft: 0, marginRight: 10 }}
-                                            btnSize="sm"
-                                            btnStyle="flat"
-                                        >
+                                        <ButtonGroup style={{ marginLeft: 0, marginRight: 10 }} btnSize="sm" btnStyle="flat">
                                             <Button
                                                 style={{ minWidth: 30 }}
                                                 compact
@@ -647,31 +587,16 @@ class Workspace extends PureComponent {
                                                 <i className="fa fa-chevron-down" style={{ fontSize: 14 }} />
                                             </Button>
                                         </ButtonGroup>
-                                        <ButtonGroup
-                                            style={{ marginLeft: 0, marginRight: 10 }}
-                                            btnSize="sm"
-                                            btnStyle="flat"
-                                        >
-                                            <Button
-                                                style={{ width: 230 }}
-                                                onClick={this.updateWidgetsForSecondaryContainer}
-                                            >
+                                        <ButtonGroup style={{ marginLeft: 0, marginRight: 10 }} btnSize="sm" btnStyle="flat">
+                                            <Button style={{ width: 230 }} onClick={this.updateWidgetsForSecondaryContainer}>
                                                 <i className="fa fa-list-alt" />
                                                 {i18n._('Manage Widgets ({{inactiveCount}})', {
                                                     inactiveCount: inactiveCount
                                                 })}
                                             </Button>
                                         </ButtonGroup>
-                                        <ButtonGroup
-                                            style={{ marginLeft: 0, marginRight: 0 }}
-                                            btnSize="sm"
-                                            btnStyle="flat"
-                                        >
-                                            <Button
-                                                style={{ minWidth: 30 }}
-                                                compact
-                                                onClick={this.toggleSecondaryContainer}
-                                            >
+                                        <ButtonGroup style={{ marginLeft: 0, marginRight: 0 }} btnSize="sm" btnStyle="flat">
+                                            <Button style={{ minWidth: 30 }} compact onClick={this.toggleSecondaryContainer}>
                                                 <i className="fa fa-chevron-right" />
                                             </Button>
                                         </ButtonGroup>
