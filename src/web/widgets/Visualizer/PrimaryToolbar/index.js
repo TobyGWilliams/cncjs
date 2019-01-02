@@ -94,6 +94,16 @@ export default class PrimaryToolbar extends PureComponent {
         actions: PropTypes.object
     };
 
+    constructor(props) {
+        super(props);
+        this.state = { store: store.state };
+        store.on('change', this.updateStateFromStore);
+    }
+
+    updateStateFromStore = data => {
+        this.setState({ ...this.state, store: data });
+    };
+
     renderControllerType() {
         const { state } = this.props;
         const controllerType = state.controller.type;
@@ -207,7 +217,6 @@ export default class PrimaryToolbar extends PureComponent {
     render() {
         const { state, actions } = this.props;
         const { disabled, gcode, projection, objects } = state;
-        const machines = _.get(store, 'state.machines');
 
         const workCoordinateProps = {
             canSendCommand: canSendCommand(_.get(state, 'port'), _.get(state, 'controller'), _.get(state, 'workflow')),
@@ -221,7 +230,7 @@ export default class PrimaryToolbar extends PureComponent {
                 {this.renderControllerType()}
                 {this.renderControllerState()}
                 <div className="pull-right">
-                    <MachineMenu machines={machines} />
+                    <MachineMenu machines={this.state.store.machines} />
                     <WorkCoordinateMenu {...workCoordinateProps} />
                     <VisualiserMenu {...visualiserProps} />
                 </div>
