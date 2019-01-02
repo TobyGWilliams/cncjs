@@ -36,15 +36,6 @@ const stopWaiting = () => {
 };
 
 class Workspace extends PureComponent {
-    constructor(props) {
-        super(props);
-        store.on('change', this.updateStateFromStore);
-    }
-
-    updateStateFromStore = data => {
-        this.setState({ ...this.state, store: data });
-    };
-
     static propTypes = {
         ...withRouter.propTypes
     };
@@ -376,7 +367,6 @@ class Workspace extends PureComponent {
     componentWillUnmount() {
         this.removeControllerEvents();
         this.removeResizeEventListener();
-        store.removeListener('change', this.updateStateFromStore);
     }
 
     componentDidUpdate() {
