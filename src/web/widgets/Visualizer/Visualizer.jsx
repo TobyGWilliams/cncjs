@@ -1,31 +1,31 @@
-import each from 'lodash/each';
-import isEqual from 'lodash/isEqual';
-import tail from 'lodash/tail';
-import throttle from 'lodash/throttle';
-import find from 'lodash/find';
-import colornames from 'colornames';
-import pubsub from 'pubsub-js';
-import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
+import PropTypes from 'prop-types';
+import pubsub from 'pubsub-js';
+import { tail, throttle, each, find, isEqual, get } from 'lodash';
 import * as THREE from 'three';
 import Detector from 'three/examples/js/Detector';
+
+import colornames from 'colornames';
+// import controller from 'web/lib/controller';
 import log from '../../lib/log';
-import { getBoundingBox, loadTexture } from './helpers';
+import store from '../../store';
+
 import './CombinedCamera';
 import './TrackballControls';
-import Viewport from './Viewport';
 import CoordinateAxes from './CoordinateAxes';
-import ToolHead from './ToolHead';
-import TargetPoint from './TargetPoint';
+import GCodeVisualizer from './GCodeVisualizer';
 import GridLine from './GridLine';
 import PivotPoint3 from './PivotPoint3';
+import TargetPoint from './TargetPoint';
 import TextSprite from './TextSprite';
-import GCodeVisualizer from './GCodeVisualizer';
+import ToolHead from './ToolHead';
+import Viewport from './Viewport';
+import { MachineTravel } from './MachineTravel';
+import { getBoundingBox, loadTexture } from './helpers';
+
 import { IMPERIAL_UNITS, METRIC_UNITS } from '../../constants';
 import { CAMERA_MODE_PAN, CAMERA_MODE_ROTATE } from './constants';
-import { MachineTravel } from './MachineTravel';
-import store from '../../store';
 
 const IMPERIAL_GRID_COUNT = 32; // 32 in
 const IMPERIAL_GRID_SPACING = 25.4; // 1 in
@@ -45,19 +45,26 @@ const CAMERA_DISTANCE = 200; // Move the camera out a bit from the origin (0, 0,
 const TRACKBALL_CONTROLS_MIN_DISTANCE = 1;
 const TRACKBALL_CONTROLS_MAX_DISTANCE = 2000;
 
+const convertMachineStoretoAxisLimits = machine => {
+    return {
+        x: { min: machine.minX, max: machine.maxX },
+        y: { min: machine.minY, max: machine.maxY },
+        z: { min: machine.minZ, max: machine.maxZ }
+    };
+};
+
 class Visualizer extends Component {
     constructor(props) {
         super(props);
         store.on('change', this.updateStateFromStore);
+        this.state = {
+            machines: store.state.machines
+        };
     }
 
     updateStateFromStore = data => {
         const currentMachine = find(data.machines, 'selected');
-        this.machineTravel.updateTravels({
-            x: { min: currentMachine.minX, max: currentMachine.maxX },
-            y: { min: currentMachine.minY, max: currentMachine.maxY },
-            z: { min: currentMachine.minZ, max: currentMachine.maxZ }
-        });
+        this.machineTravel.updateTravels(convertMachineStoretoAxisLimits(currentMachine));
         this.updateScene();
     };
 
@@ -231,6 +238,9 @@ class Visualizer extends Component {
 
             needUpdateScene = true;
         }
+
+        // Update work coordinate offset
+        this.machineTravel.updateWCO(get(this, 'props.state.controller.state.status.wco'));
 
         if (needUpdateScene) {
             this.updateScene({ forceUpdate: forceUpdate });
@@ -595,16 +605,11 @@ class Visualizer extends Component {
         }
 
         {
-            this.machineTravel = new MachineTravel();
+            const currentMachine = find(this.state.machines, 'selected');
+            this.machineTravel = new MachineTravel(convertMachineStoretoAxisLimits(currentMachine), { x: 0, y: 0, z: 0 });
             this.group.add(this.machineTravel.group);
-            this.machineTravel.updateWCO({ x: 10, y: -5, z: 0 });
-            this.machineTravel.updateTravels({
-                x: { min: 0, max: 260 },
-                y: { min: 0, max: 130 },
-                z: { min: 0, max: 100 }
-            });
-            setTimeout(this.updateScene, 1000);
         }
+
         {
             // Target Point
             this.targetPoint = new TargetPoint({
@@ -648,7 +653,7 @@ class Visualizer extends Component {
     renderAnimationLoop() {
         if (this.isAgitated) {
             // Call the render() function up to 60 times per second (i.e. 60fps)
-            requestAnimationFrame(::this.renderAnimationLoop);
+            requestAnimationFrame(:: this.renderAnimationLoop);
 
             // Set to 360 rounds per minute (rpm)
             this.rotateToolHead(360);
