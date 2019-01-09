@@ -106,20 +106,20 @@ const displayWebGLErrorMessage = () => {
             </Modal.Header>
             <Modal.Body>
                 <ModalTemplate type="warning">
-                    {window.WebGLRenderingContext &&
-                    <div>
+                    {window.WebGLRenderingContext && (
+                        <div>
                         Your graphics card does not seem to support <Anchor href="http://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation">WebGL</Anchor>.
-                        <br />
+                            <br />
                         Find out how to get it <Anchor href="http://get.webgl.org/">here</Anchor>.
-                    </div>
-                    }
-                    {!window.WebGLRenderingContext &&
-                    <div>
+                        </div>
+                    )}
+                    {!window.WebGLRenderingContext && (
+                        <div>
                         Your browser does not seem to support <Anchor href="http://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation">WebGL</Anchor>.
-                        <br />
+                            <br />
                         Find out how to get it <Anchor href="http://get.webgl.org/">here</Anchor>.
-                    </div>
-                    }
+                        </div>
+                    )}
                 </ModalTemplate>
             </Modal.Body>
             <Modal.Footer>
@@ -139,7 +139,9 @@ class VisualizerWidget extends PureComponent {
     };
 
     config = new WidgetConfig(this.props.widgetId);
+
     state = this.getInitialState();
+
     actions = {
         dismissNotification: () => {
             this.setState((state) => ({
@@ -564,6 +566,7 @@ class VisualizerWidget extends PureComponent {
             }
         }
     };
+
     controllerEvents = {
         'serialport:open': (options) => {
             const { port } = options;
@@ -760,10 +763,12 @@ class VisualizerWidget extends PureComponent {
             }
         }
     };
+
     pubsubTokens = [];
 
     // refs
     widgetContent = null;
+
     visualizer = null;
 
     componentDidMount() {
@@ -779,9 +784,11 @@ class VisualizerWidget extends PureComponent {
             }, 0);
         }
     }
+
     componentWillUnmount() {
         this.removeControllerEvents();
     }
+
     componentDidUpdate(prevProps, prevState) {
         if (this.state.disabled !== prevState.disabled) {
             this.config.set('disabled', this.state.disabled);
@@ -805,6 +812,7 @@ class VisualizerWidget extends PureComponent {
             this.config.set('objects.toolhead.visible', this.state.objects.toolhead.visible);
         }
     }
+
     getInitialState() {
         return {
             port: controller.port,
@@ -873,18 +881,21 @@ class VisualizerWidget extends PureComponent {
             isAgitated: false // Defaults to false
         };
     }
+
     addControllerEvents() {
         Object.keys(this.controllerEvents).forEach(eventName => {
             const callback = this.controllerEvents[eventName];
             controller.addListener(eventName, callback);
         });
     }
+
     removeControllerEvents() {
         Object.keys(this.controllerEvents).forEach(eventName => {
             const callback = this.controllerEvents[eventName];
             controller.removeListener(eventName, callback);
         });
     }
+
     isAgitated() {
         const { workflow, disabled, objects } = this.state;
         const controllerType = this.state.controller.type;
@@ -929,6 +940,7 @@ class VisualizerWidget extends PureComponent {
 
         return true;
     }
+
     render() {
         const state = {
             ...this.state,
@@ -968,12 +980,12 @@ class VisualizerWidget extends PureComponent {
                     {state.gcode.rendering &&
                     <Rendering />
                     }
-                    {state.modal.name === MODAL_WATCH_DIRECTORY &&
-                    <WatchDirectory
-                        state={state}
-                        actions={actions}
-                    />
-                    }
+                    {state.modal.name === MODAL_WATCH_DIRECTORY && (
+                        <WatchDirectory
+                            state={state}
+                            actions={actions}
+                        />
+                    )}
                     <WorkflowControl
                         state={state}
                         actions={actions}
@@ -982,32 +994,32 @@ class VisualizerWidget extends PureComponent {
                         show={showDashboard}
                         state={state}
                     />
-                    {Detector.webgl &&
-                    <Visualizer
-                        show={showVisualizer}
-                        ref={node => {
-                            this.visualizer = node;
-                        }}
-                        state={state}
-                    />
-                    }
-                    {showNotifications &&
-                    <Notifications
-                        show={showNotifications}
-                        type={state.notification.type}
-                        data={state.notification.data}
-                        onDismiss={actions.dismissNotification}
-                    />
-                    }
+                    {Detector.webgl && (
+                        <Visualizer
+                            show={showVisualizer}
+                            ref={node => {
+                                this.visualizer = node;
+                            }}
+                            state={state}
+                        />
+                    )}
+                    {showNotifications && (
+                        <Notifications
+                            show={showNotifications}
+                            type={state.notification.type}
+                            data={state.notification.data}
+                            onDismiss={actions.dismissNotification}
+                        />
+                    )}
                 </Widget.Content>
-                {capable.view3D &&
-                <Widget.Footer className={styles.widgetFooter}>
-                    <SecondaryToolbar
-                        state={state}
-                        actions={actions}
-                    />
-                </Widget.Footer>
-                }
+                {capable.view3D && (
+                    <Widget.Footer className={styles.widgetFooter}>
+                        <SecondaryToolbar
+                            state={state}
+                            actions={actions}
+                        />
+                    </Widget.Footer>
+                )}
             </Widget>
         );
     }
