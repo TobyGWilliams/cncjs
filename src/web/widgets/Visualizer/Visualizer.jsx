@@ -1082,10 +1082,6 @@ class Visualizer extends Component {
       }
 
       if (this.machineTravel) {
-          console.log(
-              this.machineTravel,
-              get(state, 'controller.state.status.wco')
-          );
           this.machineTravel.updateWCO(get(state, 'controller.state.status.wco'));
       }
 
