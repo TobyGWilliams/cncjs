@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import pubsub from 'pubsub-js';
-import { tail, throttle, each, find, isEqual, get } from 'lodash';
+import { tail, throttle, each, find, get } from 'lodash';
 import * as THREE from 'three';
 import Detector from 'three/examples/js/Detector';
 
@@ -27,6 +27,7 @@ import { getBoundingBox, loadTexture } from './helpers';
 import { IMPERIAL_UNITS, METRIC_UNITS } from '../../constants';
 import { CAMERA_MODE_PAN, CAMERA_MODE_ROTATE } from './constants';
 
+const RESIZE = 'resize';
 const IMPERIAL_GRID_COUNT = 32; // 32 in
 const IMPERIAL_GRID_SPACING = 25.4; // 1 in
 const IMPERIAL_AXIS_LENGTH = IMPERIAL_GRID_SPACING * 12; // 12 in
@@ -56,19 +57,32 @@ const convertMachineStoretoAxisLimits = machine => {
 class Visualizer extends Component {
     constructor(props) {
         super(props);
-        store.on('change', this.updateStateFromStore);
+        this.group = new THREE.Group();
+        this.isAgitated = false;
+        this.workPosition = {
+            x: 0,
+            y: 0,
+            z: 0
+        };
         this.state = {
             machines: store.state.machines
         };
-        this.renderer = null;
-        this.scene = null;
-        this.camera = null;
-        this.controls = null;
-        this.viewport = null;
-        this.toolhead = null;
-        this.targetPoint = null;
-        this.visualizer = null;
-        this.machineTravel = null;
+        this.pivotPoint = new PivotPoint3({ x: 0, y: 0, z: 0 }, (x, y, z) => {
+            // relative position
+            each(this.group.children, o => {
+                o.translateX(x);
+                o.translateY(y);
+                o.translateZ(z);
+            });
+
+            // Update the scene
+            this.updateScene();
+        });
+        store.on('change', this.updateStateFromStore);
+
+        pubsub.subscribe(RESIZE, msg => {
+            this.resizeRenderer();
+        });
     }
 
   updateStateFromStore = data => {
@@ -84,36 +98,11 @@ class Visualizer extends Component {
       state: PropTypes.object
   };
 
-  pubsubTokens = [];
-
-  isAgitated = false;
-
-  workPosition = {
-      x: 0,
-      y: 0,
-      z: 0
-  };
-
-  group = new THREE.Group();
-
-  pivotPoint = new PivotPoint3({ x: 0, y: 0, z: 0 }, (x, y, z) => {
-      // relative position
-      each(this.group.children, o => {
-          o.translateX(x);
-          o.translateY(y);
-          o.translateZ(z);
-      });
-
-      // Update the scene
-      this.updateScene();
-  });
-
   throttledResize = throttle(() => {
       this.resizeRenderer();
   }, 32); // 60hz
 
   componentDidMount() {
-      this.subscribe();
       this.addResizeEventListener();
 
       if (this.node) {
@@ -125,7 +114,7 @@ class Visualizer extends Component {
 
   componentWillUnmount() {
       store.removeListener('change', this.updateStateFromStore);
-      this.unsubscribe();
+      pubsub.unsubscribe(RESIZE);
       this.removeResizeEventListener();
       this.clearScene();
   }
@@ -145,12 +134,6 @@ class Visualizer extends Component {
           needUpdateScene = true;
       }
 
-      // Update visualizer's frame index
-      if (this.visualizer) {
-          const frameIndex = nextState.gcode.sent;
-          this.visualizer.setFrameIndex(frameIndex);
-      }
-
       // Projection
       if (state.projection !== nextState.projection) {
           if (nextState.projection === 'orthographic') {
@@ -165,12 +148,6 @@ class Visualizer extends Component {
           if (this.viewport) {
               this.viewport.update();
           }
-          needUpdateScene = true;
-      }
-
-      // Camera Mode
-      if (state.cameraMode !== nextState.cameraMode) {
-          this.setCameraMode(nextState.cameraMode);
           needUpdateScene = true;
       }
 
@@ -242,30 +219,6 @@ class Visualizer extends Component {
           needUpdateScene = true;
       }
 
-      // Whether to show tool head
-      if (
-          this.toolhead &&
-      this.toolhead.visible !== nextState.objects.toolhead.visible
-      ) {
-          this.toolhead.visible = nextState.objects.toolhead.visible;
-
-          needUpdateScene = true;
-      }
-
-      // Update work position
-      if (!isEqual(this.workPosition, nextState.workPosition)) {
-          this.workPosition = nextState.workPosition;
-          this.setWorkPosition(this.workPosition);
-
-          needUpdateScene = true;
-      }
-
-      //   // Update work coordinate offset
-      //   this.machineTravel.updateWCO(
-      //       get(nextProps, 'state.controller.state.status.wco')
-      //   );
-      //   needUpdateScene = true;
-
       if (needUpdateScene) {
           this.updateScene({ forceUpdate });
       }
@@ -280,30 +233,13 @@ class Visualizer extends Component {
       }
   }
 
-  subscribe() {
-      const tokens = [
-          pubsub.subscribe('resize', msg => {
-              console.log(msg, 'resize render');
-              this.resizeRenderer();
-          })
-      ];
-      this.pubsubTokens = this.pubsubTokens.concat(tokens);
-  }
-
-  unsubscribe() {
-      this.pubsubTokens.forEach(token => {
-          pubsub.unsubscribe(token);
-      });
-      this.pubsubTokens = [];
-  }
-
   // https://tylercipriani.com/blog/2014/07/12/crossbrowser-javascript-scrollbar-detection/
   hasVerticalScrollbar() {
-      return window.innerWidth > document.documentElement.clientWidth;
+      // return window.innerWidth > document.documentElement.clientWidth;
   }
 
   hasHorizontalScrollbar() {
-      return window.innerHeight > document.documentElement.clientHeight;
+      // return window.innerHeight > document.documentElement.clientHeight;
   }
 
   // http://www.alexandre-gomes.com/?p=115
@@ -1132,14 +1068,30 @@ class Visualizer extends Component {
   }
 
   render() {
-      if (this.machineTravel) {
-          this.machineTravel.updateWCO(
-              get(this, 'props.state.controller.state.status.wco')
-          );
-          this.updateScene();
+      const { state, show } = this.props;
+      const { cameraMode, workPosition, gcode } = state;
+
+      if (this.visualizer) {
+          this.visualizer.setFrameIndex(gcode.sent);
       }
 
-      const { show } = this.props;
+      if (this.machineTravel) {
+          console.log(
+              this.machineTravel,
+              get(state, 'controller.state.status.wco')
+          );
+          this.machineTravel.updateWCO(get(state, 'controller.state.status.wco'));
+      }
+
+      if (this.toolhead) {
+          this.toolhead.visible = get(state, 'objects.toolhead.visible');
+      }
+
+      this.setWorkPosition(workPosition);
+      this.setCameraMode(cameraMode);
+      this.setWorkPosition(workPosition);
+      this.updateScene();
+
       const style = {
           visibility: show ? 'visible' : 'hidden'
       };
