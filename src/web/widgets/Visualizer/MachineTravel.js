@@ -38,7 +38,7 @@ export class MachineTravel {
 
     updateWCO(wco) {
         let updateVisual = false;
-        if (!isEqual(this.wco, wco)) {
+        if (wco && !isEqual(this.wco, wco)) {
             this.wco = Object.assign({}, wco);
             this.updatePosition();
             updateVisual = true;
