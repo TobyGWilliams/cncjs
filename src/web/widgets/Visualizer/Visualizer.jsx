@@ -57,16 +57,25 @@ const convertMachineStoretoAxisLimits = machine => {
 class Visualizer extends Component {
     constructor(props) {
         super(props);
+
         this.group = new THREE.Group();
+
         this.isAgitated = false;
+
         this.workPosition = {
             x: 0,
             y: 0,
             z: 0
         };
+
         this.state = {
             machines: store.state.machines
         };
+
+        this.throttledResize = throttle(() => {
+            this.resizeRenderer();
+        }, 32);
+
         this.pivotPoint = new PivotPoint3({ x: 0, y: 0, z: 0 }, (x, y, z) => {
             // relative position
             each(this.group.children, o => {
@@ -78,6 +87,7 @@ class Visualizer extends Component {
             // Update the scene
             this.updateScene();
         });
+
         store.on('change', this.updateStateFromStore);
 
         pubsub.subscribe(RESIZE, msg => {
@@ -97,10 +107,6 @@ class Visualizer extends Component {
       show: PropTypes.bool,
       state: PropTypes.object
   };
-
-  throttledResize = throttle(() => {
-      this.resizeRenderer();
-  }, 32); // 60hz
 
   componentDidMount() {
       this.addResizeEventListener();
