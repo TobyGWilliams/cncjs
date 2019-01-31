@@ -131,15 +131,6 @@ class Visualizer extends Component {
       const state = this.props.state;
       const nextState = nextProps.state;
 
-      // Enable or disable 3D view
-      if (this.props.show !== nextProps.show && !!nextProps.show === true) {
-          this.viewport.update();
-
-          // Set forceUpdate to true when enabling or disabling 3D view
-          forceUpdate = true;
-          needUpdateScene = true;
-      }
-
       // Projection
       if (state.projection !== nextState.projection) {
           if (nextState.projection === 'orthographic') {
@@ -154,74 +145,6 @@ class Visualizer extends Component {
           if (this.viewport) {
               this.viewport.update();
           }
-          needUpdateScene = true;
-      }
-
-      // Whether to show the name of the G-code file
-      if (state.gcode.displayName !== nextState.gcode.displayName) {
-          const gcodeDisplayName = this.group.getObjectByName('GCodeDisplayName');
-          if (gcodeDisplayName) {
-              gcodeDisplayName.visible = nextState.gcode.displayName;
-
-              needUpdateScene = true;
-          }
-      }
-
-      // Whether to show coordinate system
-      if (
-          nextState.units !== state.units ||
-      nextState.objects.coordinateSystem.visible !==
-        state.objects.coordinateSystem.visible
-      ) {
-          const visible = nextState.objects.coordinateSystem.visible;
-
-          // Imperial
-          const imperialCoordinateSystem = this.group.getObjectByName(
-              'ImperialCoordinateSystem'
-          );
-          if (imperialCoordinateSystem) {
-              imperialCoordinateSystem.visible =
-          visible && nextState.units === IMPERIAL_UNITS;
-          }
-
-          // Metric
-          const metricCoordinateSystem = this.group.getObjectByName(
-              'MetricCoordinateSystem'
-          );
-          if (metricCoordinateSystem) {
-              metricCoordinateSystem.visible =
-          visible && nextState.units === METRIC_UNITS;
-          }
-
-          needUpdateScene = true;
-      }
-
-      // Whether to show grid line numbers
-      if (
-          nextState.units !== state.units ||
-      nextState.objects.gridLineNumbers.visible !==
-        state.objects.gridLineNumbers.visible
-      ) {
-          const visible = nextState.objects.gridLineNumbers.visible;
-
-          // Imperial
-          const imperialGridLineNumbers = this.group.getObjectByName(
-              'ImperialGridLineNumbers'
-          );
-          if (imperialGridLineNumbers) {
-              imperialGridLineNumbers.visible =
-          visible && nextState.units === IMPERIAL_UNITS;
-          }
-
-          // Metric
-          const metricGridLineNumbers = this.group.getObjectByName(
-              'MetricGridLineNumbers'
-          );
-          if (metricGridLineNumbers) {
-              metricGridLineNumbers.visible =
-          visible && nextState.units === METRIC_UNITS;
-          }
-
           needUpdateScene = true;
       }
 
@@ -1075,7 +998,25 @@ class Visualizer extends Component {
 
   render() {
       const { state, show } = this.props;
-      const { cameraMode, workPosition, gcode } = state;
+      const { cameraMode, workPosition, gcode, objects } = state;
+
+      const gcodeDisplayName = this.group.getObjectByName('GCodeDisplayName');
+      const imperialGridLineNumbers = this.group.getObjectByName('ImperialGridLineNumbers');
+      const metricGridLineNumbers = this.group.getObjectByName('MetricGridLineNumbers');
+
+      const gridLineNumbersVisible = get(objects, 'gridLineNumbers.visible');
+
+      if (imperialGridLineNumbers) {
+          imperialGridLineNumbers.visible = gridLineNumbersVisible && state.units === IMPERIAL_UNITS;
+      }
+
+      if (metricGridLineNumbers) {
+          metricGridLineNumbers.visible = gridLineNumbersVisible && state.units === METRIC_UNITS;
+      }
+
+      if (gcode.displayName && gcodeDisplayName) {
+          gcodeDisplayName.visible = gcode.displayName;
+      }
 
       if (this.visualizer) {
           this.visualizer.setFrameIndex(gcode.sent);
